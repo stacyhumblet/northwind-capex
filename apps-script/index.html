@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CapEx vs Target Dashboard</title>
+  <style>
+    /* ── Flash prevention ─────────────────────────────────── */
+    html { background: #000; }
+    html[data-theme="light"] { background: #f0f4ff; }
+
+    /* ── Design tokens ───────────────────────────────────── */
+    :root {
+      --bg:       #0b1020;
+      --surface:  rgba(255,255,255,.055);
+      --surface2: rgba(255,255,255,.03);
+      --border:   rgba(255,255,255,.08);
+      --text:     #e7ecff;
+      --muted:    #a7b1d6;
+      --btn:      #2d6bff;
+      --btn2:     #1a4fd6;
+      --good:     #1fe3a5;
+      --warn:     #ffcc66;
+      --bad:      #ff6b6b;
+      --capex:    #3b82f6;
+      --opex:     #f97316;
+    }
+    [data-theme="light"] {
+      --bg:       #f0f4ff;
+      --surface:  rgba(255,255,255,.92);
+      --surface2: rgba(255,255,255,.75);
+      --border:   rgba(0,0,0,.09);
+      --text:     #1a2142;
+      --muted:    #5c6690;
+      --btn:      #2d6bff;
+      --btn2:     #1a4fd6;
+      --good:     #0ba676;
+      --warn:     #b87d00;
+      --bad:      #d93636;
+      --capex:    #2563eb;
+      --opex:     #ea580c;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 700px at 20% 0%,  rgba(45,107,255,.20), transparent 60%),
+        radial-gradient(900px  600px at 80% 10%, rgba(90,159,194,.14), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    [data-theme="light"] body {
+      background:
+        radial-gradient(1200px 700px at 20% 0%,  rgba(45,107,255,.07), transparent 60%),
+        radial-gradient(900px  600px at 80% 10%, rgba(90,159,194,.06), transparent 60%),
+        var(--bg);
+    }
+
+    /* ── Top bar ─────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 22px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,.18);
+      backdrop-filter: blur(12px);
+      position: sticky; top: 0; z-index: 20;
+      gap: 12px; flex-wrap: wrap;
+    }
+    [data-theme="light"] .topbar {
+      background: rgba(255,255,255,.82);
+      border-bottom-color: rgba(0,0,0,.08);
+    }
+    .brand { display: flex; flex-direction: column; }
+    .brand-title    { font-size: 17px; font-weight: 800; letter-spacing: .2px; }
+    .brand-subtitle { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .topbar-right   { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    .icon-btn {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .icon-btn:hover { background: rgba(255,255,255,.09); }
+    [data-theme="light"] .icon-btn { background: rgba(255,255,255,.70); }
+
+    /* ── Layout ──────────────────────────────────────────── */
+    .container {
+      width: min(1300px, calc(100% - 32px));
+      margin: 18px auto 52px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.22);
+    }
+    [data-theme="light"] .card {
+      box-shadow: 0 4px 18px rgba(0,0,0,.08);
+    }
+    .card-title    { font-weight: 800; font-size: 14px; }
+    .card-subtitle { margin-top: 4px; color: var(--muted); font-size: 12px; }
+
+    /* ── Filters ─────────────────────────────────────────── */
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0,1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    @media (max-width: 900px) { .filters-grid { grid-template-columns: repeat(3,1fr); } }
+    @media (max-width: 560px) { .filters-grid { grid-template-columns: 1fr 1fr; } }
+
+    .field label {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    select {
+      width: 100%;
+      padding: 8px 28px 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.22);
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a7b1d6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      cursor: pointer;
+    }
+    select:focus { border-color: var(--btn); }
+    [data-theme="light"] select { background-color: rgba(255,255,255,.88); }
+
+    .reset-btn {
+      align-self: flex-end;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .reset-btn:hover { background: rgba(255,255,255,.08); color: var(--text); }
+
+    /* ── KPI Pills ───────────────────────────────────────── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+    @media (max-width: 860px) { .kpi-row { grid-template-columns: repeat(3,1fr); } }
+    @media (max-width: 520px) { .kpi-row { grid-template-columns: 1fr 1fr; } }
+
+    .kpi-pill {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .kpi-label { color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+    .kpi-value { font-size: 22px; font-weight: 900; letter-spacing: -.5px; line-height: 1; }
+    .kpi-sub   { color: var(--muted); font-size: 11px; margin-top: 2px; }
+    .kpi-pill.good { border-color: rgba(31,227,165,.35); }
+    .kpi-pill.warn { border-color: rgba(255,204,102,.35); }
+    .kpi-pill.bad  { border-color: rgba(255,107,107,.35); }
+
+    /* ── View Toggle ─────────────────────────────────────── */
+    .view-toggle {
+      display: flex; gap: 6px; align-items: center;
+    }
+    .toggle-btn {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      padding: 6px 13px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .toggle-btn.active {
+      background: var(--btn);
+      border-color: var(--btn);
+      color: #fff;
+    }
+    .toggle-btn:not(.active):hover { background: rgba(255,255,255,.06); color: var(--text); }
+
+    /* ── Main Table ──────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; margin-top: 12px; }
+    table { width: 100%; border-collapse: collapse; min-width: 780px; }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      text-align: left;
+    }
+    th {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      white-space: nowrap;
+    }
+    td.num, th.num { text-align: right; }
+    tbody tr:hover { background: rgba(255,255,255,.035); }
+    [data-theme="light"] tbody tr:hover { background: rgba(0,0,0,.025); }
+
+    /* ── Row levels / hierarchy ──────────────────────────── */
+    .row-l4  { --indent: 0px;  background: rgba(255,255,255,.025); }
+    .row-l5  { --indent: 18px; background: rgba(255,255,255,.015); }
+    .row-l6  { --indent: 36px; }
+    .row-dm  { --indent: 54px; }
+    .row-res { --indent: 72px; }
+    [data-theme="light"] .row-l4 { background: rgba(0,0,0,.025); }
+    [data-theme="light"] .row-l5 { background: rgba(0,0,0,.015); }
+
+    .name-cell {
+      padding-left: calc(12px + var(--indent, 0px));
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 180px;
+    }
+    .expand-btn {
+      width: 20px; height: 20px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: transform .2s;
+    }
+    .expand-btn.open { transform: rotate(90deg); }
+    .expand-btn.leaf { visibility: hidden; pointer-events: none; }
+    [data-theme="light"] .expand-btn { background: rgba(255,255,255,.70); }
+
+    .level-badge {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 5px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .badge-l4  { background: rgba(45,107,255,.25);  color: #90bfff; }
+    .badge-l5  { background: rgba(90,159,194,.22);  color: #7ecfed; }
+    .badge-l6  { background: rgba(155,143,255,.20); color: #c4beff; }
+    .badge-dm  { background: rgba(255,204,102,.18); color: #ffcc66; }
+    .badge-res { background: rgba(31,227,165,.15);  color: #1fe3a5; }
+    [data-theme="light"] .badge-l4  { background: rgba(45,107,255,.12);  color: #1a4fd6; }
+    [data-theme="light"] .badge-l5  { background: rgba(26,110,148,.12);  color: #1a6e94; }
+    [data-theme="light"] .badge-l6  { background: rgba(107,85,217,.12);  color: #6b55d9; }
+    [data-theme="light"] .badge-dm  { background: rgba(184,125,0,.12);   color: #b87d00; }
+    [data-theme="light"] .badge-res { background: rgba(11,166,118,.12);  color: #0ba676; }
+
+    /* ── Variance bar ────────────────────────────────────── */
+    .var-cell { min-width: 160px; }
+    .var-bar-row { display: flex; align-items: center; gap: 8px; }
+    .var-track {
+      flex: 1;
+      height: 6px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .var-fill {
+      position: absolute;
+      top: 0; bottom: 0;
+      border-radius: 4px;
+      transition: width .4s ease;
+    }
+    .var-label {
+      font-size: 12px;
+      font-weight: 800;
+      min-width: 52px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    /* ── Dual bar (CapEx vs OpEx split) ─────────────────── */
+    .split-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; width: 100%; min-width: 80px; }
+    .split-capex { background: var(--capex); flex: none; height: 100%; }
+    .split-opex  { background: var(--opex);  flex: 1;    height: 100%; }
+
+    /* ── Colors for variance ─────────────────────────────── */
+    .good  { color: var(--good); }
+    .warn  { color: var(--warn); }
+    .bad   { color: var(--bad); }
+    .fill-good { background: var(--good); }
+    .fill-warn { background: var(--warn); }
+    .fill-bad  { background: var(--bad); }
+
+    /* ── Loading ─────────────────────────────────────────── */
+    .loading {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(11,16,32,.96);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+      transition: opacity .5s;
+    }
+    [data-theme="light"] .loading { background: rgba(240,244,255,.96); }
+    .loading.fade-out { opacity: 0; pointer-events: none; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--btn);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .load-text { color: var(--muted); font-size: 14px; font-weight: 600; }
+
+    /* ── Error state ─────────────────────────────────────── */
+    .error-box {
+      background: rgba(255,107,107,.08);
+      border: 1px solid rgba(255,107,107,.30);
+      border-radius: 12px;
+      padding: 18px 20px;
+      color: var(--bad);
+      font-size: 14px;
+    }
+
+    /* ── Empty state ─────────────────────────────────────── */
+    .empty-row td {
+      text-align: center;
+      color: var(--muted);
+      padding: 32px;
+      font-size: 13px;
+    }
+
+    /* ── Footer ──────────────────────────────────────────── */
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      background: rgba(0,0,0,.10);
+      flex-wrap: wrap;
+    }
+    [data-theme="light"] .footer { background: rgba(255,255,255,.50); }
+
+    /* ── Legend ──────────────────────────────────────────── */
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Tooltip ─────────────────────────────────────────── */
+    [title] { cursor: help; }
+
+    /* ── No-target indicator ─────────────────────────────── */
+    .no-target { color: var(--muted); font-size: 12px; font-style: italic; }
+  </style>
+</head>
+<body>
+
+<!-- Loading screen -->
+<div class="loading" id="loadingScreen">
+  <div class="spinner"></div>
+  <div class="load-text">Loading CapEx data…</div>
+</div>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-title">CapEx Capitalization vs Target</div>
+    <div class="brand-subtitle">Actual CapEx % compared to resource targets — rolled up by manager area</div>
+  </div>
+  <div class="topbar-right">
+    <button class="icon-btn" id="refreshBtn" onclick="refreshData()">↻ Refresh</button>
+    <button class="icon-btn" id="themeBtn" onclick="toggleTheme()">☀ Light</button>
+  </div>
+</div>
+
+<div class="container" id="mainContent" style="display:none">
+
+  <!-- Filters card -->
+  <div class="card">
+    <div class="card-title">Filters</div>
+    <div class="filters-grid">
+      <div class="field">
+        <label>Year</label>
+        <select id="fYear" onchange="applyFilters()"><option value="">All Years</option></select>
+      </div>
+      <div class="field">
+        <label>Month</label>
+        <select id="fMonth" onchange="applyFilters()"><option value="">All Months</option></select>
+      </div>
+      <div class="field">
+        <label>L4 Manager</label>
+        <select id="fL4" onchange="applyFilters()"><option value="">All L4</option></select>
+      </div>
+      <div class="field">
+        <label>L5 Manager</label>
+        <select id="fL5" onchange="applyFilters()"><option value="">All L5</option></select>
+      </div>
+      <div style="display:flex; align-items:flex-end;">
+        <button class="reset-btn" onclick="resetFilters()">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI row -->
+  <div class="kpi-row" id="kpiRow">
+    <div class="kpi-pill"><div class="kpi-label">Resources Tracked</div><div class="kpi-value" id="kpiResources">—</div><div class="kpi-sub">with targets</div></div>
+    <div class="kpi-pill"><div class="kpi-label">Avg Actual Cap%</div><div class="kpi-value" id="kpiActual">—</div><div class="kpi-sub">weighted by hours</div></div>
+    <div class="kpi-pill"><div class="kpi-label">Avg Target Cap%</div><div class="kpi-value" id="kpiTarget">—</div><div class="kpi-sub">weighted by hours</div></div>
+    <div class="kpi-pill" id="kpiVarPill"><div class="kpi-label">Avg Variance</div><div class="kpi-value" id="kpiVariance">—</div><div class="kpi-sub">actual − target</div></div>
+    <div class="kpi-pill"><div class="kpi-label">On Target</div><div class="kpi-value" id="kpiOnTarget">—</div><div class="kpi-sub">within ±5 pts</div></div>
+  </div>
+
+  <!-- Error box -->
+  <div class="error-box" id="errorBox" style="display:none"></div>
+
+  <!-- Main table card -->
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px">
+      <div>
+        <div class="card-title">Capitalization by Resource &amp; Manager Area</div>
+        <div class="card-subtitle">Click ▶ to expand. Variance = Actual CapEx% − Target CapEx%. Positive = over-capitalized.</div>
+      </div>
+      <div class="view-toggle">
+        <button class="toggle-btn active" id="btnExpand" onclick="expandAll()">Expand All</button>
+        <button class="toggle-btn" id="btnCollapse" onclick="collapseAll()">Collapse All</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="min-width:210px">Name</th>
+            <th class="num">Total Hrs</th>
+            <th class="num">CapEx Hrs</th>
+            <th class="num">OpEx Hrs</th>
+            <th class="num" style="min-width:90px">CapEx Split</th>
+            <th class="num">Actual%</th>
+            <th class="num">Target%</th>
+            <th style="min-width:160px">Variance</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr class="empty-row"><td colspan="8">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Legend -->
+    <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--good)"></div> Within ±5 pts (on target)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--warn)"></div> ±5–15 pts (watch)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--bad)"></div> &gt;15 pts off (action needed)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--capex)"></div> CapEx</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--opex)"></div> OpEx</div>
+      </div>
+      <div style="font-size:11px; color:var(--muted)" id="rowCountLabel"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <span>CapEx vs Target · Source: Actuals_DummyData &amp; Capex Targets By Resource</span>
+  <span id="lastLoaded"></span>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let RAW = null;        // { rows, targetsMap, fo }  — compact pre-aggregated format
+let TREE = null;       // built hierarchy
+let expandState = {};  // nodeKey → true/false
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+(function initTheme() {
+  const saved = localStorage.getItem('capex_theme') || 'dark';
+  setTheme(saved);
+})();
+
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = t === 'dark' ? '☀ Light' : '☾ Dark';
+  localStorage.setItem('capex_theme', t);
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  setTheme(cur === 'dark' ? 'light' : 'dark');
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load', loadData);
+
+function loadData() {
+  showLoading(true);
+  google.script.run
+    .withSuccessHandler(onDataLoaded)
+    .withFailureHandler(onError)
+    .getCapexData();
+}
+
+function refreshData() {
+  document.getElementById('refreshBtn').textContent = '↻ Refreshing…';
+  document.getElementById('refreshBtn').disabled = true;
+  showLoading(true);
+  google.script.run
+    .withSuccessHandler(onDataLoaded)
+    .withFailureHandler(onError)
+    .getCapexData();
+}
+
+function onDataLoaded(data) {
+  RAW = data;
+  document.getElementById('lastLoaded').textContent =
+    'Last loaded: ' + new Date().toLocaleTimeString();
+  document.getElementById('refreshBtn').textContent = '↻ Refresh';
+  document.getElementById('refreshBtn').disabled = false;
+
+  populateFilters();
+  applyFilters();
+  showLoading(false);
+  document.getElementById('mainContent').style.display = '';
+}
+
+function onError(err) {
+  showLoading(false);
+  document.getElementById('mainContent').style.display = '';
+  const box = document.getElementById('errorBox');
+  box.style.display = '';
+  box.textContent = 'Error loading data: ' + (err.message || String(err));
+  document.getElementById('refreshBtn').textContent = '↻ Refresh';
+  document.getElementById('refreshBtn').disabled = false;
+}
+
+function showLoading(on) {
+  const el = document.getElementById('loadingScreen');
+  if (on) {
+    el.classList.remove('fade-out');
+    el.style.display = '';
+  } else {
+    el.classList.add('fade-out');
+    setTimeout(() => { el.style.display = 'none'; }, 600);
+  }
+}
+
+// ── Filter population — uses pre-computed options from server ─────────────────
+function populateFilters() {
+  const fo = RAW.fo;
+  fillSelect('fYear',  fo.years,  'All Years');
+  fillSelect('fMonth', fo.months, 'All Months');
+  fillSelect('fL4',    fo.l4s,    'All L4');
+  fillSelect('fL5',    fo.l5s,    'All L5');
+}
+
+function fillSelect(id, values, allLabel) {
+  const sel = document.getElementById(id);
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">${allLabel}</option>`;
+  values.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    if (v === cur) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function resetFilters() {
+  ['fYear','fMonth','fL4','fL5'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  applyFilters();
+}
+
+// ── Filter & build tree ───────────────────────────────────────────────────────
+// Compact rows use short field names: yr, mo, l4, l5, l6, dm, res, c, o
+function applyFilters() {
+  if (!RAW) return;
+
+  const fYear  = document.getElementById('fYear').value;
+  const fMonth = document.getElementById('fMonth').value;
+  const fL4    = document.getElementById('fL4').value;
+  const fL5    = document.getElementById('fL5').value;
+
+  let rows = RAW.rows;
+  if (fYear)  rows = rows.filter(r => r.yr === fYear);
+  if (fMonth) rows = rows.filter(r => r.mo === fMonth);
+  if (fL4)    rows = rows.filter(r => r.l4 === fL4);
+  if (fL5)    rows = rows.filter(r => r.l5 === fL5);
+
+  TREE = buildTree(rows, RAW.targetsMap);
+  updateKPIs(rows, RAW.targetsMap);
+  renderTable();
+}
+
+// ── Build hierarchy ───────────────────────────────────────────────────────────
+// Input rows are already aggregated to (yr,mo,l4,l5,l6,dm,res) grain;
+// here we sum across years/months to get total capex/opex per path.
+function buildTree(rows, targetsMap) {
+  // Sum capex/opex per resource path
+  const agg = {};
+  rows.forEach(r => {
+    const key = [r.l4, r.l5, r.l6, r.dm, r.res].join('\x01');
+    if (!agg[key]) agg[key] = { l4: r.l4, l5: r.l5, l6: r.l6, dm: r.dm, res: r.res, capex: 0, opex: 0 };
+    agg[key].capex += r.c;
+    agg[key].opex  += r.o;
+  });
+
+  // Build nested map structure
+  const l4Map = {};
+  Object.values(agg).forEach(e => {
+    if (!l4Map[e.l4]) l4Map[e.l4] = {};
+    if (!l4Map[e.l4][e.l5]) l4Map[e.l4][e.l5] = {};
+    if (!l4Map[e.l4][e.l5][e.l6]) l4Map[e.l4][e.l5][e.l6] = {};
+    if (!l4Map[e.l4][e.l5][e.l6][e.dm]) l4Map[e.l4][e.l5][e.l6][e.dm] = [];
+    l4Map[e.l4][e.l5][e.l6][e.dm].push({
+      name: e.res, capex: e.capex, opex: e.opex,
+      target: targetsMap[e.res] !== undefined ? targetsMap[e.res] : null
+    });
+  });
+
+  function rollUp(children) {
+    const capex = children.reduce((s,c) => s + c.capex, 0);
+    const opex  = children.reduce((s,c) => s + c.opex,  0);
+    let wt = 0, tw = 0;
+    children.forEach(c => {
+      if (c.target !== null) { const h = c.capex + c.opex; wt += c.target * h; tw += h; }
+    });
+    return { capex, opex, target: tw > 0 ? wt / tw : null };
+  }
+
+  const tree = [];
+  s(l4Map).forEach(([l4, l5Map]) => {
+    const l5Nodes = [];
+    s(l5Map).forEach(([l5, l6Map]) => {
+      const l6Nodes = [];
+      s(l6Map).forEach(([l6, dmMap]) => {
+        const dmNodes = [];
+        s(dmMap).forEach(([dm, resArr]) => {
+          const resNodes = resArr.map(r => ({
+            type: 'res', name: r.name, capex: r.capex, opex: r.opex, target: r.target, children: []
+          }));
+          const ru = rollUp(resNodes);
+          dmNodes.push({ type: 'dm', name: dm, ...ru, children: resNodes });
+        });
+        const ru = rollUp(dmNodes);
+        l6Nodes.push({ type: 'l6', name: l6, ...ru, children: dmNodes });
+      });
+      const ru = rollUp(l6Nodes);
+      l5Nodes.push({ type: 'l5', name: l5, ...ru, children: l6Nodes });
+    });
+    const ru = rollUp(l5Nodes);
+    tree.push({ type: 'l4', name: l4, ...ru, children: l5Nodes });
+  });
+
+  return tree;
+}
+
+// Sort object entries by key
+function s(obj) { return Object.entries(obj).sort((a,b) => a[0].localeCompare(b[0])); }
+
+// ── KPI update ────────────────────────────────────────────────────────────────
+function updateKPIs(rows, targetsMap) {
+  // Aggregate per-resource from compact rows
+  const resAgg = {};
+  rows.forEach(r => {
+    if (!resAgg[r.res]) resAgg[r.res] = { capex: 0, opex: 0 };
+    resAgg[r.res].capex += r.c;
+    resAgg[r.res].opex  += r.o;
+  });
+
+  let trackedCount = 0, onTarget = 0;
+  let totalCapex = 0, totalHrs = 0, totalTargetW = 0, totalTargetHrs = 0;
+
+  Object.entries(resAgg).forEach(([res, agg]) => {
+    const hrs = agg.capex + agg.opex;
+    totalCapex += agg.capex;
+    totalHrs   += hrs;
+    const target = targetsMap[res];
+    if (target !== null && target !== undefined) {
+      trackedCount++;
+      totalTargetW   += target * hrs;
+      totalTargetHrs += hrs;
+      const actual = hrs > 0 ? agg.capex / hrs : 0;
+      if (Math.abs(actual - target) <= 0.05) onTarget++;
+    }
+  });
+
+  const avgActual   = totalHrs       > 0 ? totalCapex    / totalHrs       : null;
+  const avgTarget   = totalTargetHrs > 0 ? totalTargetW  / totalTargetHrs : null;
+  const avgVariance = (avgActual !== null && avgTarget !== null) ? avgActual - avgTarget : null;
+
+  document.getElementById('kpiResources').textContent = trackedCount;
+  document.getElementById('kpiActual').textContent    = avgActual   !== null ? pct(avgActual)   : '—';
+  document.getElementById('kpiTarget').textContent    = avgTarget   !== null ? pct(avgTarget)   : '—';
+  document.getElementById('kpiVariance').textContent  = avgVariance !== null ? varLabel(avgVariance) : '—';
+  document.getElementById('kpiOnTarget').textContent  = onTarget + ' / ' + trackedCount;
+
+  const varPill = document.getElementById('kpiVarPill');
+  varPill.className = 'kpi-pill';
+  if (avgVariance !== null) {
+    const abs = Math.abs(avgVariance);
+    varPill.classList.add(abs <= 0.05 ? 'good' : abs <= 0.15 ? 'warn' : 'bad');
+    document.getElementById('kpiVariance').className = 'kpi-value ' + colorClass(avgVariance);
+  }
+}
+
+// ── Table render ──────────────────────────────────────────────────────────────
+function renderTable() {
+  if (!TREE) return;
+  const tbody = document.getElementById('tableBody');
+  const rows  = [];
+
+  function walk(nodes, depth) {
+    nodes.forEach(node => {
+      const key  = nodeKey(node, depth);
+      const open = expandState[key] !== undefined ? expandState[key] : false;
+      rows.push({ node, depth, key, open });
+      if (open && node.children && node.children.length) {
+        walk(node.children, depth + 1);
+      }
+    });
+  }
+  walk(TREE, 0);
+
+  const typeClass = ['row-l4','row-l5','row-l6','row-dm','row-res'];
+  const badgeClass= ['badge-l4','badge-l5','badge-l6','badge-dm','badge-res'];
+  const badgeText = ['Level 4 Mgr','Level 5 Mgr','Level 6 Mgr','DM','Resource'];
+
+  const html = rows.map(({ node, depth, key, open }) => {
+    const total   = node.capex + node.opex;
+    const actual  = total > 0 ? node.capex / total : null;
+    const target  = node.target;
+    const variance = (actual !== null && target !== null) ? actual - target : null;
+
+    const hasChildren = node.children && node.children.length > 0;
+    const expandIcon  = hasChildren
+      ? `<button class="expand-btn${open ? ' open' : ''}" onclick="toggleRow('${esc(key)}')" title="${open ? 'Collapse' : 'Expand'}">▶</button>`
+      : `<button class="expand-btn leaf" aria-hidden="true">▶</button>`;
+
+    const nameCell = `
+      <td>
+        <div class="name-cell" style="--indent:${depth*18}px">
+          ${expandIcon}
+          <span class="level-badge ${badgeClass[depth]}">${badgeText[depth]}</span>
+          <span title="${esc(node.name)}">${esc(node.name)}</span>
+        </div>
+      </td>`;
+
+    // Split bar
+    const capPct = total > 0 ? (node.capex / total * 100).toFixed(1) : 0;
+    const opPct  = 100 - capPct;
+    const splitBar = `<div class="split-bar" title="CapEx ${capPct}% / OpEx ${opPct}%">
+      <div class="split-capex" style="width:${capPct}%"></div>
+      <div class="split-opex"  style="width:${opPct}%"></div>
+    </div>`;
+
+    // Variance bar
+    let varHtml = '<span class="no-target">No target</span>';
+    if (variance !== null) {
+      const abs  = Math.abs(variance);
+      const cls  = colorClass(variance);
+      const fill = fillClass(variance);
+      const barW = Math.min(abs / 0.30, 1) * 100; // max bar at 30 pts
+      const dir  = variance >= 0 ? 'right' : 'left';
+      varHtml = `<div class="var-bar-row">
+        <div class="var-track" title="Variance: ${varLabel(variance)}">
+          <div class="var-fill ${fill}" style="width:${barW.toFixed(1)}%;${dir==='right'?'left:50%':'right:50%'}"></div>
+        </div>
+        <span class="var-label ${cls}">${varLabel(variance)}</span>
+      </div>`;
+    }
+
+    return `<tr class="${typeClass[depth] || ''}">
+      ${nameCell}
+      <td class="num">${fmt(total)}</td>
+      <td class="num">${fmt(node.capex)}</td>
+      <td class="num">${fmt(node.opex)}</td>
+      <td class="num">${splitBar}</td>
+      <td class="num">${actual !== null ? pct(actual) : '—'}</td>
+      <td class="num">${target !== null ? pct(target) : '<span class="no-target">—</span>'}</td>
+      <td class="var-cell">${varHtml}</td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = html.length
+    ? html.join('')
+    : '<tr class="empty-row"><td colspan="8">No data matches the current filters.</td></tr>';
+
+  document.getElementById('rowCountLabel').textContent =
+    rows.length + ' row' + (rows.length === 1 ? '' : 's') + ' shown';
+}
+
+// ── Expand/collapse ───────────────────────────────────────────────────────────
+function nodeKey(node, depth) {
+  return depth + '|' + node.name;
+}
+
+function toggleRow(key) {
+  expandState[key] = !getExpanded(key);
+  renderTable();
+}
+
+function getExpanded(key) {
+  const depth = parseInt(key.split('|')[0]);
+  return expandState[key] !== undefined ? expandState[key] : false;
+}
+
+function expandAll() {
+  if (!TREE) return;
+  function walk(nodes, depth) {
+    nodes.forEach(n => {
+      expandState[nodeKey(n, depth)] = true;
+      if (n.children) walk(n.children, depth + 1);
+    });
+  }
+  walk(TREE, 0);
+  renderTable();
+}
+
+function collapseAll() {
+  if (!TREE) return;
+  function walk(nodes, depth) {
+    nodes.forEach(n => {
+      if (depth > 0) expandState[nodeKey(n, depth)] = false;
+      if (n.children) walk(n.children, depth + 1);
+    });
+  }
+  walk(TREE, 0);
+  renderTable();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function pct(v)   { return (v * 100).toFixed(1) + '%'; }
+function fmt(n)   { return Math.round(n).toLocaleString(); }
+function varLabel(v) { return (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + ' pts'; }
+function esc(s)   { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function colorClass(v) {
+  if (v === null) return '';
+  const a = Math.abs(v);
+  if (a <= 0.05)  return 'good';
+  if (a <= 0.15)  return 'warn';
+  return 'bad';
+}
+function fillClass(v) {
+  if (v === null) return '';
+  const a = Math.abs(v);
+  if (a <= 0.05)  return 'fill-good';
+  if (a <= 0.15)  return 'fill-warn';
+  return 'fill-bad';
+}
+</script>
+</body>
+</html>
