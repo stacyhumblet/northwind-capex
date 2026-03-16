@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html>
+<html data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CapEx vs Target Dashboard</title>
   <style>
     /* ── Flash prevention ─────────────────────────────────── */
-    html { background: #000; }
-    html[data-theme="light"] { background: #f0f4ff; }
+    html { background: #f0f4ff; }
+    html[data-theme="dark"] { background: #000; }
 
     /* ── Design tokens ───────────────────────────────────── */
     :root {
@@ -504,7 +504,7 @@ let expandState = {};  // nodeKey → true/false
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 (function initTheme() {
-  const saved = localStorage.getItem('capex_theme') || 'dark';
+  const saved = localStorage.getItem('capex_theme') || 'light';
   setTheme(saved);
 })();
 
@@ -515,7 +515,7 @@ function setTheme(t) {
   localStorage.setItem('capex_theme', t);
 }
 function toggleTheme() {
-  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  const cur = document.documentElement.getAttribute('data-theme') || 'light';
   setTheme(cur === 'dark' ? 'light' : 'dark');
 }
 
